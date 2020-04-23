@@ -1,0 +1,251 @@
+---
+title: "La classification supervisée avec les méthodes neuralnet/keras"
+author: "AREZKI Rafik"
+date: "01/01/2019"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup_0, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+##PLAN DU TRAVAIL
+
+-1- INTRODUCTION
+
+-2- DÉFINITION ET CHARGEMENT DE DONNÉES
+
+-3- APPLICATION DE LA MÉTHODE NEURALNET
+
+-4- APPLICATION DE LA MÉTHODE KERAS
+
+-5- CONCLUSION 
+
+
+
+###-1- Introduction: 
+
+Dans ce rapport, nous allons étudier le jeu de données *data_khan* à l’aide de deux méthodes
+classification supervisée, la méthode *neuralnet* et la méthode *Keras* qui se trouve dans 
+le package *neuralnet* et *keras* dans *R-studio*. Le jeu de données data_khan 
+contient une matrice X de 2308 variables explicatives et 63 individus et un vecteur Y 
+des valeurs à expliquer de 63 individus dans la data *train* et à la fin pour tester
+si le modèle obtenu est fiable, on utilise la data test qui contient 2308 variables explicatives 
+sur 20 individus.
+
+###-2- DÉFINITION ET CHARGEMENT DES DONNÉES:
+
+####-2.1- Chargement des données:
+
+Notre jeu de donnée est subdivisé en deux échantillons, d'appretissage *data_Khan* et
+de test data_Khan_test comme suit:
+
+```{r setup_1,echo=TRUE,include=TRUE}
+# Importation des données
+load("~/Desktop/projet-part2/data_Khan_train.RData")
+load("~/Desktop/projet-part2/data_Khan_test.RData")
+# Donnée d'apprentissage :
+data_train_labels<-data_Khan$Y
+data_train<-data_Khan$X
+# Donnée test :
+data_test<-data_Khan_test$X
+data_test_labels<-data_Khan_test$Y
+```
+
+####-2.2- Affichage des données:
+
+```{r setup_2,echo=TRUE,include=TRUE}
+data.frame(data_test_labels[1:5],data_train[1:5,1:6])
+```
+
+
+####-2.3- Analyse descriptive des données d'apprentissage:
+
+```{r setup_3,echo=FALSE,include=TRUE}
+summary(data_train[,1:5])
+```
+
+Ici on a fait une analyse descriptives sur les 5 premières variables de notre jeu de données. 
+Exemple : nous remarquons que pour la variable V1, sa moyenne est 0.14693107, son maximum: 
+1.28550700, minimum: -2.6838460. il est important de connaitre les données afin de les étudier. 
+        
+####-2.4- La variable à expliquer : 
+
+```{r setup_4, include=TRUE}
+knitr::kable(data.frame(table(data_train_labels)))
+```
+
+           Remarquant dans la donnée data_khan de l'apprentissage *data_Khan$Y*, on a sur le vecteur 
+           binaire Y des valeurs à expliquer 31 valeurs de 0, et 32 de 1. 
+          
+
+###-3- Partie 01:  Application de la méthode *neuralnet*:
+
+           On applique la méthode neuralnet comme suit:
+           
+####-3.1- Construction et le rcodage de la matrice de labels:
+
+           Afin d'appliquer la méthode *neuralnet* sur notre jeu de données, il est important 
+           de séparer la variable à expliquer en des catégories c-à-d en classe {1, 0}, pour cela
+           nous pouvons utiliser une représentation matricielle comme on peut utiliser la command
+           *to_categorical* de package *keras* comme suit:  
+
+```{r setup_7,echo=TRUE,include=TRUE}
+library(keras)
+C_data_train_labels <-to_categorical(data_train_labels, 2)
+data.frame(Y_0=C_data_train_labels[20:30,1],Y_1=C_data_train_labels[20:30,2])
+```
+
+      
+####-3.2-Construction de la formule de régression:
+
+```{r setup_8,echo=TRUE,include=TRUE}
+formule<-paste(paste(paste("Y_",0:1,sep = ''),collapse = '+'),'~',paste(paste('X',1:ncol(data_train),sep=''), collapse='+'), sep='')
+
+###la formule appliquée sur neuralnet:
+cat(paste(paste(paste("Y_",0:1,sep = ''),collapse = '+'),'~',paste(paste('X',1:20,sep=''), collapse='+'), sep=''),'...',"X2308")
+```
+
+####-3.3-Application de la commande *neuralnet* de R:
+
+```{r setup_9,echo=FALSE,include=FALSE}
+set.seed(123)
+data<-data.frame(C_data_train_labels,data_train)
+colnames(data)<-c(paste("Y_",0:1,sep = ''),paste('X',1:ncol(data_train),sep=''))
+```
+
+        
+```{r setup_91,echo=TRUE,include=TRUE}
+library(neuralnet)
+nn <- neuralnet(formule,data=data,hidden=c(150),lifesign = "minimal",threshold=0.01, linear.output=FALSE)
+```
+
+####-3.4- Visualisation graphique du modèle:
+
+```{r setup_10}
+plot(nn, rep = "best")
+```
+
+####-3.5- Prédiction:
+
+```{r setup_11,echo=TRUE,include=TRUE}
+predict_test <- compute(nn,data_test)
+pred_<-as.matrix(predict_test$net.result)
+pr.nn<- max.col(pred_)-1
+```
+
+#####-3.5.1- Le vecteur des prédictions:
+
+```{r setup_111,include=TRUE}
+cat('Le vecteur prédit: ',pr.nn)
+```
+
+####-3.6- La matrice de confusion:
+
+```{r setup_13,echo=TRUE}
+library(caret)
+confusionMatrix(as.factor(data_test_labels),as.factor(pr.nn))
+```
+
+
+####-3.7- Visualisation graphique des données prédites:
+
+```{r setup_14,echo=TRUE}
+plot(predict_test$net.result, col='blue', pch=16, main=' Graphe des valeurs prédites')
+abline(0,1)
+```
+
+
+####-3.8- Calcul de l'erreur *RMSE*:
+
+
+```{r setup_15,echo=TRUE,include=TRUE}
+RMSE.NN = (sum(( data_test_labels- pr.nn)^2) / nrow(data_test)) ^ 0.5
+cat('l"erreur moyennes des sommes des carrées:',RMSE.NN)
+```
+
+         Ici dans ce cas, l'erreur de la prédiction est nulle donc modèle ajusté est parfait.
+    
+    
+###-4- Partie 02: Application de la méthode *keras*: 
+
+####-4.1- Construction de data d'apprentissage et du test:
+
+```{r setup_16,echo=TRUE,include=TRUE}
+#chargement de la librairie
+library(keras)
+x_train <- array_reshape(data_train, c(nrow(data_train),2308))
+x_test <- array_reshape(data_test, c(nrow(data_test), 2308))
+```
+
+####-4.2- Recodage de la variable cible y_train et y_test:
+
+          Nous devons la recoder en {1, 0} avant de pouvoir l’utiliser comme suit:
+
+```{r setup_17,echo=TRUE,include=TRUE}
+y_train <- to_categorical(data_train_labels, 2)
+y_test <- to_categorical(data_test_labels, 2)
+```
+
+####-4.3- Création de structure de réseau: 
+
+```{r setup_18,echo=TRUE,include=TRUE}
+#Structure de réseau
+model <- keras_model_sequential() 
+#Couche reliant l'entrée et la sortie
+model %>% 
+  layer_dense(units = 150, activation = 'relu', input_shape = c(2308)) %>% 
+  layer_dropout(rate = 0.5) %>% 
+  layer_dense(units = 2, activation = 'softmax')
+#Algorithme d'apprentissage
+model %>% compile(
+  loss = 'categorical_crossentropy',
+  optimizer = optimizer_rmsprop(),
+  metrics = c('accuracy')
+)
+history <- model %>% fit(
+  x_train, y_train, 
+  epochs = 30, batch_size =256, 
+  validation_split = 0.1
+)
+```
+
+####-4.4- Historique d'évolution de taux de perte et de prédiction: 
+
+```{r setup_19,echo=TRUE,include=TRUE}
+plot(history)
+```
+
+            Ce graphique affiche les courbes d’évolutions de la fonction de perte et du taux de 
+            reconnaissance (accuracy).
+
+####-4.5- Évaluation du modèle entrainé:
+
+```{r setup_20,echo=TRUE,include=TRUE}
+#taux de perte et accuracy:
+model %>% evaluate(x_test, y_test)
+model %>% predict_classes(x_test)
+pred<-model %>% predict_classes(x_test)
+```
+
+####-4.6- La matrice de confusion:
+
+```{r setup_21,echo=TRUE}
+library(caret)
+confusionMatrix(as.factor(data_test_labels),as.factor(pred))
+```
+
+####-4.7- Calcul de l'erreur *RMSE*:
+
+```{r setup_22,echo=TRUE,include=TRUE}
+RMSE.keras= (sum(( data_test_labels- pred)^2) / nrow(data_test)) ^ 0.5
+cat('l"erreur moyennes des sommes des carrées:',RMSE.keras)
+```
+
+###-5- Conclusion:
+
+          - La mise en pratique des méthodes des réseaux neurones vues en cours dans la
+          classification supervisée. 
