@@ -1,5 +1,5 @@
 ---
-  #title: ""
+  #title: "Classification OF DATA_KHAN with the NEURALNET method"
   # author: "AREZKI Rafik"
  
 set.seed(123) 
